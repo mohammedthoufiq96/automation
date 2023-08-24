@@ -1,0 +1,36 @@
+FROM --platform=linux/amd64 circleci/openjdk:8-jdk
+
+# set work directory
+WORKDIR /usr/automation
+
+# add source code into image
+COPY src /usr/automation/src/
+COPY serenity.properties /usr/automation/
+COPY pom.xml /usr/automation/
+
+# Install maven build tool
+RUN apt-get update && \
+    apt-get install -y maven
+
+# Install Google Chrome
+RUN apt-get update && \
+    apt-get install -y wget gnupg && \
+    wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add - && \
+    echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google-chrome.list && \
+    apt-get update && \
+    apt-get install -y google-chrome-stable
+
+# Install ChromeDriver
+RUN CHROME_DRIVER_VERSION=$(curl -sS https://chromedriver.storage.googleapis.com/LATEST_RELEASE) && \
+    wget https://chromedriver.storage.googleapis.com/$CHROME_DRIVER_VERSION/chromedriver_linux64.zip && \
+    unzip chromedriver_linux64.zip && \
+    mv chromedriver /usr/bin/chromedriver && \
+    chmod +x /usr/bin/chromedriver && \
+    rm chromedriver_linux64.zip
+
+# run maven clean and install commands to clean and build the project
+RUN mvn clean install
+
+EXPOSE 8080
+
+CMD ["mvn", "verify", "-Dbrowser=chrome"]
